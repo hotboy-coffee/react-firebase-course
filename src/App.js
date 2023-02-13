@@ -10,7 +10,10 @@ import {
   doc,
   updateDoc,
 } from "firebase/firestore";
-import { ref, uploadBytes } from "firebase/storage";
+import { ref, uploadBytes, listAll, getDownloadURL } from "firebase/storage";
+// import { async } from "@firebase/util";
+
+import { v4 } from "uuid";
 
 function App() {
   const [movieList, setMovieList] = useState([]);
@@ -25,6 +28,23 @@ function App() {
 
   //File Upload State
   const [fileUpload, setFileUpload] = useState(null);
+
+  //FileUpload
+  const [imageUpload, setImageUpload] = useState(null);
+
+  //Image List
+  const [imageList, setImageList] = useState([]);
+  const imageListRef = ref(storage, "images/");
+
+  const uploadImage = () => {
+    if (imageUpload == null) return;
+    const imageRef = ref(storage, `images/${imageUpload.name + v4()}`);
+    uploadBytes(imageRef, imageUpload).then((snapshot) => {
+      getDownloadURL(snapshot.ref).then((url) => {
+        setImageList((prev) => [...prev, url]);
+      });
+    });
+  };
 
   const moviesCollectionRef = collection(db, "movies");
 
@@ -45,6 +65,13 @@ function App() {
 
   useEffect(() => {
     getMovieList();
+    listAll(imageListRef).then((response) => {
+      response.items.forEach((item) => {
+        getDownloadURL(item).then((url) => {
+          setImageList((prev) => [...prev, url]);
+        });
+      });
+    });
   }, []);
 
   const onSubmitMovie = async () => {
@@ -120,6 +147,7 @@ function App() {
               onChange={(e) => setUpdatedTitle(e.target.value)}
             />
             <button onClick={() => updateMovieTitle(movie.id)}>
+              {" "}
               Update Title
             </button>
           </div>
@@ -129,6 +157,19 @@ function App() {
       <div>
         <input type="file" onChange={(e) => setFileUpload(e.target.files[0])} />
         <button onClick={uploadFile}>Upload File</button>
+      </div>
+      <div>
+        <h4>New Version</h4>
+        <input
+          type="file"
+          onChange={(e) => {
+            setImageUpload(e.target.files[0]);
+          }}
+        />
+        <button onClick={uploadImage}>Upload Image</button>
+        {imageList.map((url) => {
+          return <img src={url} />;
+        })}
       </div>
     </div>
   );
